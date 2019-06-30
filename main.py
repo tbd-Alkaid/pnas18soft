@@ -17,16 +17,16 @@ def main():
     problem_name0 = 'AllenCahn'
     config = get_config(problem_name0)
     bsde = get_equation(problem_name0, config.dim, config.total_time, config.num_time_interval)
-    log_dir = './logs'
-    if not os.path.exists(log_dir):
-        os.mkdir(log_dir)
-    path_prefix = os.path.join(log_dir, problem_name0)
-    with open('{}_config.json'.format(path_prefix), 'w') as outfile:
-        json.dump(dict((name, getattr(config, name))
-                       for name in dir(config) if not name.startswith('__')),
-                  outfile, indent=2)
-    logging.basicConfig(level=logging.INFO,
-                        format='%(levelname)-6s %(message)s')
+    # log_dir = './logs'
+    # if not os.path.exists(log_dir):
+    #     os.mkdir(log_dir)
+    # path_prefix = os.path.join(log_dir, problem_name0)
+    # with open('{}_config.json'.format(path_prefix), 'w') as outfile:
+    #     json.dump(dict((name, getattr(config, name))
+    #                    for name in dir(config) if not name.startswith('__')),
+    #               outfile, indent=2)
+    # logging.basicConfig(level=logging.INFO,
+    #                     format='%(levelname)-6s %(message)s')
 
     for idx_run in range(1, 2):
         tf.reset_default_graph()

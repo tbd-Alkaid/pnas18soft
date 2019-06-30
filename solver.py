@@ -37,9 +37,8 @@ class FeedForwardModel(object):
         for step in range(self._config.num_iterations+1):
             if step % self._config.logging_frequency == 0:
                 #loss, init = self._sess.run([self._loss, self._y_init], feed_dict=feed_dict_valid)
-                y = self._sess.run([self.y,self.test]
+                y = self._sess.run([self.y]
                 , feed_dict=feed_dict_valid)####
-                # print(y.shape())
                 elapsed_time = time.time()-start_time+self._t_build
                 training_history.append([y])
                 '''
@@ -47,16 +46,15 @@ class FeedForwardModel(object):
                     logging.info("step: %5u,    loss: %.4e,   Y0: %.4e,  elapsed time %3u" % (
                         step, loss, init, elapsed_time))'''
             dw_train, x_train,t_train = self._bsde.sample(self._config.valid_size,self._num_time_interval,self._bsde.delta_t)
-            # self._sess.run(self._train_ops, feed_dict={self._dw: dw_train,
-            #                                            self._x: x_train,
-            #                                            self._t: t_train,
-            #                                            self._is_training: True})
+            self._sess.run(self._train_ops, feed_dict={self._dw: dw_train,
+                                                       self._x: x_train,
+                                                       self._t: t_train,
+                                                       self._is_training: True})
         return np.array(training_history)
 
     def build(self):
         start_time = time.time()
-        #time_stamp = np.arange(0, self._bsde.num_time_interval) * self._bsde.delta_t
-        self._t = tf.placeholder(TF_DTYPE,None, name='t')###########################################################
+        self._t = tf.placeholder(TF_DTYPE,None, name='t')
         self._dw = tf.placeholder(TF_DTYPE, [None, self._dim, self._num_time_interval], name='dW')
         self._x = tf.placeholder(TF_DTYPE, [None, self._dim, self._num_time_interval + 1], name='X')
         self._is_training = tf.placeholder(tf.bool)
@@ -71,41 +69,32 @@ class FeedForwardModel(object):
         self.y = all_one_vec * self._y_init
         z = tf.matmul(all_one_vec, z_init)
         for t in range(0, self._num_time_interval-1):
-                #y = y - self._bsde.delta_t * (
-                  #  self._bsde.f_tf(time_stamp[t], self._x[:, :, t], y, z)
-              #  ) + tf.reduce_sum(z * self._dw[:, :, t], 1, keep_dims=True)
-                self.y  = self.y  - self._bsde.delta_t * (
-                    self._bsde.f_tf(self._t[t], self._x[:, :, t], self.y , z)
-                ) + tf.reduce_sum(z * self._dw[:, :, t], 1, keep_dims=True)
-                z = self._subnetwork(self._x[:, :, t + 1], str(t + 1)) / self._dim
-            # terminal time
-            #y = y - self._bsde.delta_t * self._bsde.f_tf(
-              #  time_stamp[-1], self._x[:, :, -2], y, z
-            #) + tf.reduce_sum(z * self._dw[:, :, -1], 1, keep_dims=True)
-            self.y  = self.y  - self._bsde.delta_t * self._bsde.f_tf(
-                self._t[-1], self._x[:, :, -2], self.y , z
-            ) + tf.reduce_sum(z * self._dw[:, :, -1], 1, keep_dims=True)
-            delta = self.y  - self._bsde.g_tf(self._total_time, self._x[:, :, -1])
-            #self.test = tf.gradients(self.y,self._t[-1])#################################################################################
-            # use linear approximation outside the clipped range
-            self._loss = tf.reduce_mean(tf.where(tf.abs(delta) < DELTA_CLIP, tf.square(delta),
-                                                 2 * DELTA_CLIP * tf.abs(delta) - DELTA_CLIP ** 2))
-            # train operations
-            global_step = tf.get_variable('global_step', [],
-                                        initializer=tf.constant_initializer(0),
-                                        trainable=False, dtype=tf.int32)
-            learning_rate = tf.train.piecewise_constant(global_step,
-                                                        self._config.lr_boundaries,
-                                                        self._config.lr_values)
-            self.trainable_variables = tf.trainable_variables()
-            self.test = tf.gradients(self.y,self._t)
-            grads = tf.gradients(self._loss, self.trainable_variables)
-            optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-            apply_op = optimizer.apply_gradients(zip(grads, self.trainable_variables),
-                                                global_step=global_step, name='train_step')
-            all_ops = [apply_op] + self._extra_train_ops
-            self._train_ops = tf.group(*all_ops)
-            self._t_build = time.time()-start_time
+            self.y  = self.y  - self._bsde.delta_t * (
+                self._bsde.f_tf(self._t[t], self._x[:, :, t], self.y , z)
+            ) + tf.reduce_sum(z * self._dw[:, :, t], 1, keep_dims=True)
+            z = self._subnetwork(self._x[:, :, t + 1], str(t + 1)) / self._dim
+        self.y  = self.y  - self._bsde.delta_t * self._bsde.f_tf(
+            self._t[-1], self._x[:, :, -2], self.y , z
+        ) + tf.reduce_sum(z * self._dw[:, :, -1], 1, keep_dims=True)
+        delta = self.y  - self._bsde.g_tf(self._total_time, self._x[:, :, -1])
+        self._loss = tf.reduce_mean(tf.where(tf.abs(delta) < DELTA_CLIP, tf.square(delta),
+                                                2 * DELTA_CLIP * tf.abs(delta) - DELTA_CLIP ** 2))
+        # train operations
+        global_step = tf.get_variable('global_step', [],
+                                    initializer=tf.constant_initializer(0),
+                                    trainable=False, dtype=tf.int32)
+        learning_rate = tf.train.piecewise_constant(global_step,
+                                                    self._config.lr_boundaries,
+                                                    self._config.lr_values)
+        self.trainable_variables = tf.trainable_variables()
+        #self.test = tf.gradients(self.y,self._t)
+        grads = tf.gradients(self._loss, self.trainable_variables)
+        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+        apply_op = optimizer.apply_gradients(zip(grads, self.trainable_variables),
+                                            global_step=global_step, name='train_step')
+        all_ops = [apply_op] + self._extra_train_ops
+        self._train_ops = tf.group(*all_ops)
+        self._t_build = time.time()-start_time
 
     def _subnetwork(self, x, name):
         with tf.variable_scope(name):
