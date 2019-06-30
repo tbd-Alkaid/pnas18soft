@@ -37,10 +37,10 @@ class FeedForwardModel(object):
         for step in range(self._config.num_iterations+1):
             if step % self._config.logging_frequency == 0:
                 #loss, init = self._sess.run([self._loss, self._y_init], feed_dict=feed_dict_valid)
-                y = self._sess.run([self.y]
-                , feed_dict=feed_dict_valid)####
+                #########################################
+                y = self._sess.run(self.y, feed_dict=feed_dict_valid)####
                 elapsed_time = time.time()-start_time+self._t_build
-                training_history.append([y])
+                training_history.append(y)
                 '''
                 if self._config.verbose:
                     logging.info("step: %5u,    loss: %.4e,   Y0: %.4e,  elapsed time %3u" % (
@@ -76,6 +76,8 @@ class FeedForwardModel(object):
         self.y  = self.y  - self._bsde.delta_t * self._bsde.f_tf(
             self._t[-1], self._x[:, :, -2], self.y , z
         ) + tf.reduce_sum(z * self._dw[:, :, -1], 1, keep_dims=True)
+        #########################
+        self.y_g =  tf.gradients(self.y,self._t)
         delta = self.y  - self._bsde.g_tf(self._total_time, self._x[:, :, -1])
         self._loss = tf.reduce_mean(tf.where(tf.abs(delta) < DELTA_CLIP, tf.square(delta),
                                                 2 * DELTA_CLIP * tf.abs(delta) - DELTA_CLIP ** 2))

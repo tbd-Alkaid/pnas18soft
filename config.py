@@ -2,8 +2,8 @@ import numpy as np
 
 class Config(object):
     n_layer = 4
-    batch_size = 64
-    valid_size = 256
+    batch_size = 2
+    valid_size = 2
     step_boundaries = [2000, 4000]
     num_iterations = 6000
     logging_frequency = 5

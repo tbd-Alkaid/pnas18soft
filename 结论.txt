@@ -1,0 +1,8 @@
+tf.placeholder在第一维是1的情况下会出现很“棘手”的问题。
+对一个tf.placeholder求导，在存在分量形式的情况情况下会出现很严重的问题。
+两个重要结论
+z = tf.reshape(tf.diag_part(tf.matmul(input,tf.transpose(input))),[2,1])
+tensor.shape
+
+
+不要做测中测
